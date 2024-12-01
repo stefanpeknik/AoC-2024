@@ -19,7 +19,7 @@ pub fn part_one(input: &str) -> Option<usize> {
     let total_distance = lists
         .0
         .into_iter()
-        .zip(lists.1.into_iter())
+        .zip(lists.1)
         .map(|(a, b)| a.abs_diff(b))
         .sum();
     Some(total_distance)
