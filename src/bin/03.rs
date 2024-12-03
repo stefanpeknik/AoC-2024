@@ -3,86 +3,32 @@ advent_of_code::solution!(3);
 use regex::Regex;
 use std::sync::LazyLock;
 
-struct Instruction {
-    oper: String,
-    ops: Vec<u32>,
-}
-
-impl Instruction {
-    fn from(caps: &regex::Captures) -> Self {
-        Instruction {
-            oper: caps["oper"].to_string(),
-            ops: if let Some(ops) = caps.name("ops") {
-                ops.as_str()
-                    .split(',')
-                    .map(|op| op.parse().unwrap())
-                    .collect()
-            } else {
-                Vec::new()
-            },
-        }
-    }
-}
-
-struct InstructionInterpreter;
-enum InstructionResult {
-    Mul(u32),
-    Do,
-    Dont,
-    Err,
-}
-
-impl InstructionInterpreter {
-    pub const OPERATIONS: &'static [&'static str] = &["mul", "do", "don't"];
-
-    fn interpret(instruction: &Instruction) -> InstructionResult {
-        match instruction.oper.as_str() {
-            "mul" if instruction.ops.len() == 2 => {
-                InstructionResult::Mul(instruction.ops.iter().product())
-            }
-            "do" => InstructionResult::Do,
-            "don't" => InstructionResult::Dont,
-            _ => InstructionResult::Err,
-        }
-    }
-}
-
 static INSTRUCTION_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(
         r"(?P<instruction>(?P<oper>{cmds})\((?P<ops>\d{{1,3}}(,\d{{1,3}})*)?\))",
-        cmds = InstructionInterpreter::OPERATIONS.join("|")
+        cmds = ["mul", "do", "don't"].join("|")
     ))
     .unwrap()
 });
 
-struct Scanner<'a> {
-    gen: regex::CaptureMatches<'a, 'a>,
-}
-
-impl<'a> Scanner<'a> {
-    fn new(input: &'a str) -> Self {
-        Scanner {
-            gen: INSTRUCTION_RE.captures_iter(input),
-        }
-    }
-}
-
-impl<'a> Iterator for Scanner<'a> {
-    type Item = Instruction;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.gen.next() {
-            Some(caps) => Some(Instruction::from(&caps)),
-            None => None,
-        }
-    }
-}
-
 pub fn part_one(input: &str) -> Option<u32> {
     let mut res = 0;
-    for instruc in Scanner::new(input) {
-        match InstructionInterpreter::interpret(&instruc) {
-            InstructionResult::Mul(val) => res += val,
+    for cap in INSTRUCTION_RE.captures_iter(input) {
+        match Some(cap.name("oper").unwrap().as_str()) {
+            Some("mul") => {
+                let ops = cap
+                    .name("ops")
+                    .unwrap()
+                    .as_str()
+                    .split(",")
+                    .collect::<Vec<_>>();
+                if ops.len() == 2 {
+                    res += ops
+                        .iter()
+                        .map(|x| x.parse::<u32>().unwrap())
+                        .product::<u32>()
+                }
+            }
             _ => (),
         }
     }
@@ -92,15 +38,44 @@ pub fn part_one(input: &str) -> Option<u32> {
 pub fn part_two(input: &str) -> Option<u32> {
     let mut res = 0;
     let mut enabled = true;
-    for instruc in Scanner::new(input) {
-        match InstructionInterpreter::interpret(&instruc) {
-            InstructionResult::Mul(val) if enabled => res += val,
-            InstructionResult::Do => enabled = true,
-            InstructionResult::Dont => enabled = false,
+    for cap in INSTRUCTION_RE.captures_iter(input) {
+        match Some(cap.name("oper").unwrap().as_str()) {
+            Some("mul") if enabled => {
+                let ops = cap
+                    .name("ops")
+                    .unwrap()
+                    .as_str()
+                    .split(",")
+                    .collect::<Vec<_>>();
+                if ops.len() == 2 {
+                    res += ops
+                        .iter()
+                        .map(|x| x.parse::<u32>().unwrap())
+                        .product::<u32>()
+                }
+            }
+            Some("do") => {
+                let ops = match cap.name("ops") {
+                    Some(ops) => ops.as_str().split(",").collect::<Vec<_>>(),
+                    None => vec![],
+                };
+                if ops.len() == 0 {
+                    enabled = true;
+                }
+            }
+            Some("don't") => {
+                let ops = match cap.name("ops") {
+                    Some(ops) => ops.as_str().split(",").collect::<Vec<_>>(),
+                    None => vec![],
+                };
+                if ops.len() == 0 {
+                    enabled = false;
+                }
+            }
+
             _ => (),
         }
     }
-
     Some(res)
 }
 
